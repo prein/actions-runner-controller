@@ -188,8 +188,6 @@ func main() {
 		log.Info("Using default AutoscalingListener image pull policy", "ImagePullPolicy", actionsgithubcom.DefaultScaleSetListenerImagePullPolicy)
 	}
 
-	actionsgithubcom.SetMetricsAddr(metricsAddr)
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		NewCache:           newCache,
