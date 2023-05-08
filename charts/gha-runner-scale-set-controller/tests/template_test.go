@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -356,10 +357,13 @@ func TestTemplate_ControllerDeployment_Defaults(t *testing.T) {
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Command, 1)
 	assert.Equal(t, "/manager", deployment.Spec.Template.Spec.Containers[0].Command[0])
 
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 3)
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 6)
 	assert.Equal(t, "--auto-scaling-runner-set-only", deployment.Spec.Template.Spec.Containers[0].Args[0])
 	assert.Equal(t, "--log-level=debug", deployment.Spec.Template.Spec.Containers[0].Args[1])
 	assert.Equal(t, "--update-strategy=immediate", deployment.Spec.Template.Spec.Containers[0].Args[2])
+	assert.Equal(t, "--listener-metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[3])
+	assert.Equal(t, "--listener-metrics-endpoint=/metrics", deployment.Spec.Template.Spec.Containers[0].Args[4])
+	assert.Equal(t, "--metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[5])
 
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Env, 3)
 	assert.Equal(t, "CONTROLLER_MANAGER_CONTAINER_IMAGE", deployment.Spec.Template.Spec.Containers[0].Env[0].Name)
@@ -484,11 +488,14 @@ func TestTemplate_ControllerDeployment_Customize(t *testing.T) {
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Command, 1)
 	assert.Equal(t, "/manager", deployment.Spec.Template.Spec.Containers[0].Command[0])
 
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 4)
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 7)
 	assert.Equal(t, "--auto-scaling-runner-set-only", deployment.Spec.Template.Spec.Containers[0].Args[0])
 	assert.Equal(t, "--auto-scaler-image-pull-secrets=dockerhub", deployment.Spec.Template.Spec.Containers[0].Args[1])
 	assert.Equal(t, "--log-level=debug", deployment.Spec.Template.Spec.Containers[0].Args[2])
 	assert.Equal(t, "--update-strategy=eventual", deployment.Spec.Template.Spec.Containers[0].Args[3])
+	assert.Equal(t, "--listener-metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[4])
+	assert.Equal(t, "--listener-metrics-endpoint=/metrics", deployment.Spec.Template.Spec.Containers[0].Args[5])
+	assert.Equal(t, "--metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[6])
 
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Env, 4)
 	assert.Equal(t, "CONTROLLER_MANAGER_CONTAINER_IMAGE", deployment.Spec.Template.Spec.Containers[0].Env[0].Name)
@@ -605,12 +612,15 @@ func TestTemplate_EnableLeaderElection(t *testing.T) {
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Command, 1)
 	assert.Equal(t, "/manager", deployment.Spec.Template.Spec.Containers[0].Command[0])
 
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 5)
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 8)
 	assert.Equal(t, "--auto-scaling-runner-set-only", deployment.Spec.Template.Spec.Containers[0].Args[0])
 	assert.Equal(t, "--enable-leader-election", deployment.Spec.Template.Spec.Containers[0].Args[1])
 	assert.Equal(t, "--leader-election-id=test-arc-gha-runner-scale-set-controller", deployment.Spec.Template.Spec.Containers[0].Args[2])
 	assert.Equal(t, "--log-level=debug", deployment.Spec.Template.Spec.Containers[0].Args[3])
 	assert.Equal(t, "--update-strategy=immediate", deployment.Spec.Template.Spec.Containers[0].Args[4])
+	assert.Equal(t, "--listener-metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[5])
+	assert.Equal(t, "--listener-metrics-endpoint=/metrics", deployment.Spec.Template.Spec.Containers[0].Args[6])
+	assert.Equal(t, "--metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[7])
 }
 
 func TestTemplate_ControllerDeployment_ForwardImagePullSecrets(t *testing.T) {
@@ -639,11 +649,14 @@ func TestTemplate_ControllerDeployment_ForwardImagePullSecrets(t *testing.T) {
 
 	assert.Equal(t, namespaceName, deployment.Namespace)
 
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 4)
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 7)
 	assert.Equal(t, "--auto-scaling-runner-set-only", deployment.Spec.Template.Spec.Containers[0].Args[0])
 	assert.Equal(t, "--auto-scaler-image-pull-secrets=dockerhub,ghcr", deployment.Spec.Template.Spec.Containers[0].Args[1])
 	assert.Equal(t, "--log-level=debug", deployment.Spec.Template.Spec.Containers[0].Args[2])
 	assert.Equal(t, "--update-strategy=immediate", deployment.Spec.Template.Spec.Containers[0].Args[3])
+	assert.Equal(t, "--listener-metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[4])
+	assert.Equal(t, "--listener-metrics-endpoint=/metrics", deployment.Spec.Template.Spec.Containers[0].Args[5])
+	assert.Equal(t, "--metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[6])
 }
 
 func TestTemplate_ControllerDeployment_WatchSingleNamespace(t *testing.T) {
@@ -721,11 +734,14 @@ func TestTemplate_ControllerDeployment_WatchSingleNamespace(t *testing.T) {
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Command, 1)
 	assert.Equal(t, "/manager", deployment.Spec.Template.Spec.Containers[0].Command[0])
 
-	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 4)
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Args, 7)
 	assert.Equal(t, "--auto-scaling-runner-set-only", deployment.Spec.Template.Spec.Containers[0].Args[0])
 	assert.Equal(t, "--log-level=debug", deployment.Spec.Template.Spec.Containers[0].Args[1])
 	assert.Equal(t, "--watch-single-namespace=demo", deployment.Spec.Template.Spec.Containers[0].Args[2])
 	assert.Equal(t, "--update-strategy=immediate", deployment.Spec.Template.Spec.Containers[0].Args[3])
+	assert.Equal(t, "--listener-metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[4])
+	assert.Equal(t, "--listener-metrics-endpoint=/metrics", deployment.Spec.Template.Spec.Containers[0].Args[5])
+	assert.Equal(t, "--metrics-addr=:8080", deployment.Spec.Template.Spec.Containers[0].Args[6])
 
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].Env, 3)
 	assert.Equal(t, "CONTROLLER_MANAGER_CONTAINER_IMAGE", deployment.Spec.Template.Spec.Containers[0].Env[0].Name)
@@ -912,4 +928,76 @@ func TestTemplate_ManagerSingleNamespaceRoleBinding(t *testing.T) {
 	assert.Equal(t, "test-arc-gha-runner-scale-set-controller-manager-single-namespace-watch-role", managerSingleNamespaceWatchRoleBinding.RoleRef.Name)
 	assert.Equal(t, "test-arc-gha-runner-scale-set-controller", managerSingleNamespaceWatchRoleBinding.Subjects[0].Name)
 	assert.Equal(t, namespaceName, managerSingleNamespaceWatchRoleBinding.Subjects[0].Namespace)
+}
+
+func TestControllerDeployment_MetricsPorts(t *testing.T) {
+	t.Parallel()
+
+	// Path to the helm chart we will test
+	helmChartPath, err := filepath.Abs("../../gha-runner-scale-set-controller")
+	require.NoError(t, err)
+
+	chartContent, err := os.ReadFile(filepath.Join(helmChartPath, "Chart.yaml"))
+	require.NoError(t, err)
+
+	chart := new(Chart)
+	err = yaml.Unmarshal(chartContent, chart)
+	require.NoError(t, err)
+
+	releaseName := "test-arc"
+	namespaceName := "test-" + strings.ToLower(random.UniqueId())
+
+	options := &helm.Options{
+		Logger: logger.Discard,
+		SetValues: map[string]string{
+			"image.tag":                "dev",
+			"metrics.controllerAddr":   ":8080",
+			"metrics.listenerAddr":     ":8081",
+			"metrics.listenerEndpoint": "/metrics",
+		},
+		KubectlOptions: k8s.NewKubectlOptions("", "", namespaceName),
+	}
+
+	output := helm.RenderTemplate(t, options, helmChartPath, releaseName, []string{"templates/deployment.yaml"})
+
+	var deployment appsv1.Deployment
+	helm.UnmarshalK8SYaml(t, output, &deployment)
+
+	require.Len(t, deployment.Spec.Template.Spec.Containers, 1, "Expected one container")
+	container := deployment.Spec.Template.Spec.Containers[0]
+	assert.Len(t, container.Ports, 1)
+	port := container.Ports[0]
+	assert.Equal(t, corev1.Protocol("TCP"), port.Protocol)
+	assert.Equal(t, int32(8080), port.ContainerPort)
+
+	metricsFlags := map[string]*struct {
+		expect    string
+		frequency int
+	}{
+		"--listener-metrics-addr": {
+			expect: ":8081",
+		},
+		"--listener-metrics-endpoint": {
+			expect: "/metrics",
+		},
+		"--metrics-addr": {
+			expect: ":8080",
+		},
+	}
+	for _, cmd := range container.Args {
+		s := strings.Split(cmd, "=")
+		if len(s) != 2 {
+			continue
+		}
+		flag, ok := metricsFlags[s[0]]
+		if !ok {
+			continue
+		}
+		flag.frequency++
+		assert.Equal(t, flag.expect, s[1])
+	}
+
+	for key, value := range metricsFlags {
+		assert.Equal(t, value.frequency, 1, fmt.Sprintf("frequency of %q is not 1", key))
+	}
 }
