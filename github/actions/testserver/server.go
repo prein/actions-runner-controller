@@ -14,6 +14,7 @@ import (
 	"github.com/actions/actions-runner-controller/github/actions"
 	"github.com/go-logr/logr"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/require"
@@ -67,6 +68,7 @@ func NewUnstarted(t ginkgo.GinkgoTInterface, handler http.Handler, options ...ac
 	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", server.handleDeleteRunnerScaleSet).Methods(http.MethodDelete)
 	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", server.handleGetRunnerScaleSetByID).Methods(http.MethodGet)
 	mux.HandleFunc(scaleSetEndpoint, server.handleGetRunnerScaleSetByName).Methods(http.MethodGet)
+	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}/sessions", server.handleCreateMessageSession).Methods(http.MethodPost)
 
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// handle getRunnerRegistrationToken
@@ -298,12 +300,74 @@ func (s *actionsServer) handleGetRunnerScaleSetByName(w http.ResponseWriter, r *
 	writeJSON(w, &res)
 }
 
+func (s *actionsServer) handleCreateMessageSession(w http.ResponseWriter, r *http.Request) {
+	// id := mux.Vars(r)["id"]
+	uuid := uuid.New()
+	res := &actions.RunnerScaleSetSession{
+		SessionId:               &uuid,
+		OwnerName:               "owner",
+		RunnerScaleSet:          &actions.RunnerScaleSet{},
+		MessageQueueUrl:         s.Server.Config.Addr,
+		MessageQueueAccessToken: "token",
+		Statistics:              &actions.RunnerScaleSetStatistic{},
+	}
+
+	writeJSON(w, res)
+}
+
+func (s *actionsServer) GetRunner(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	_ = id
+}
+
 func writeJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
 
 type db struct {
+	mu                sync.Mutex
 	scaleSetIDCounter atomic.Int64
 	scaleSets         sync.Map
+	orgs              map[string]*org
+}
+
+func newDB() *db {
+	return &db{
+		orgs: make(map[string]*org),
+	}
+}
+
+func (db *db) addOrg(name string) {
+	db.orgs[name] = &org{
+		repos: make(map[string]*repo),
+	}
+}
+
+func (db *db) addRepo(org, repository string) {
+	db.orgs[org].repos[repository] = &repo{
+		scaleSets: make(map[int64]*scaleSet),
+	}
+}
+
+func (db *db) addScaleSet(org, repository string, ss *scaleSet) {
+	db.orgs[org].repos[repository].scaleSets[ss.id] = ss
+}
+
+type org struct {
+	repos map[string]*repo
+}
+
+type repo struct {
+	scaleSets map[int64]*scaleSet
+}
+
+type scaleSet struct {
+	id      int64
+	name    string
+	runners map[int64]*runner
+}
+
+type runner struct {
+	name string
 }
