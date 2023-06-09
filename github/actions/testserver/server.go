@@ -34,18 +34,115 @@ const (
 // when the test ends.
 //
 // TODO: this uses ginkgo interface _only_ to support our current controller tests
-func New(t ginkgo.GinkgoTInterface, handler http.Handler, options ...actionsServerOption) *actionsServer {
-	s := NewUnstarted(t, handler, options...)
+func New(t ginkgo.GinkgoTInterface, handlers Handlers, options ...actionsServerOption) *actionsServer {
+	s := NewUnstarted(t, handlers, options...)
 	s.Start()
 	return s
 }
 
+type Handlers struct {
+	CreateRegistrationToken          func(w http.ResponseWriter, r *http.Request)
+	CreateAccessToken                func(w http.ResponseWriter, r *http.Request)
+	GetActionsServiceAdminConnection func(w http.ResponseWriter, r *http.Request)
+	CreateRunnerScaleSet             func(w http.ResponseWriter, r *http.Request)
+	UpdateRunnerScaleSet             func(w http.ResponseWriter, r *http.Request)
+	DeleteRunnerScaleSet             func(w http.ResponseWriter, r *http.Request)
+	GetRunnerScaleSetByID            func(w http.ResponseWriter, r *http.Request)
+	GetRunnerScaleSetByName          func(w http.ResponseWriter, r *http.Request)
+	CreateMessageSession             func(w http.ResponseWriter, r *http.Request)
+	DeleteMessageSession             func(w http.ResponseWriter, r *http.Request)
+	RefreshMessageSession            func(w http.ResponseWriter, r *http.Request)
+	AcquireJobs                      func(w http.ResponseWriter, r *http.Request)
+	GetMessage                       func(w http.ResponseWriter, r *http.Request)
+	DeleteMessage                    func(w http.ResponseWriter, r *http.Request)
+	GenerateJitRunnerConfig          func(w http.ResponseWriter, r *http.Request)
+	GetRunner                        func(w http.ResponseWriter, r *http.Request)
+	GetRunnerByName                  func(w http.ResponseWriter, r *http.Request)
+	RemoveRunner                     func(w http.ResponseWriter, r *http.Request)
+}
+
+func (h *Handlers) defaults(srv *actionsServer) {
+	if h.CreateRegistrationToken == nil {
+		h.CreateRegistrationToken = srv.handleCreateRegistrationToken
+	}
+
+	if h.CreateAccessToken == nil {
+		h.CreateAccessToken = srv.handleCreateAccessToken
+	}
+
+	if h.GetActionsServiceAdminConnection == nil {
+		h.GetActionsServiceAdminConnection = srv.handleGetActionsServiceAdminConnection
+	}
+
+	if h.CreateRunnerScaleSet == nil {
+		h.CreateRunnerScaleSet = srv.handleCreateRunnerScaleSet
+	}
+
+	if h.UpdateRunnerScaleSet == nil {
+		h.UpdateRunnerScaleSet = srv.handleUpdateRunnerScaleSet
+	}
+
+	if h.DeleteRunnerScaleSet == nil {
+		h.DeleteRunnerScaleSet = srv.handleDeleteRunnerScaleSet
+	}
+
+	if h.GetRunnerScaleSetByID == nil {
+		h.GetRunnerScaleSetByID = srv.handleGetRunnerScaleSetByID
+	}
+
+	if h.GetRunnerScaleSetByName == nil {
+		h.GetRunnerScaleSetByName = srv.handleGetRunnerScaleSetByName
+	}
+
+	if h.CreateMessageSession == nil {
+		h.CreateMessageSession = srv.handleCreateMessageSession
+	}
+
+	if h.DeleteMessageSession == nil {
+		h.DeleteMessageSession = srv.handleDeleteMessageSession
+	}
+
+	if h.RefreshMessageSession == nil {
+		h.RefreshMessageSession = srv.handleRefreshMessageSession
+	}
+
+	if h.AcquireJobs == nil {
+		h.AcquireJobs = srv.handleAcquireJobs
+	}
+
+	if h.GetMessage == nil {
+		h.GetMessage = srv.handleGetMessage
+	}
+
+	if h.DeleteMessage == nil {
+		h.DeleteMessage = srv.handleDeleteMessage
+	}
+
+	if h.GenerateJitRunnerConfig == nil {
+		h.GenerateJitRunnerConfig = srv.handleGenerateJitRunnerConfig
+	}
+
+	if h.GetRunner == nil {
+		h.GetRunner = srv.handleGetRunner
+	}
+
+	if h.GetRunnerByName == nil {
+		h.GetRunnerByName = srv.handleGetRunnerByName
+	}
+
+	if h.RemoveRunner == nil {
+		h.RemoveRunner = srv.handleRemoveRunner
+	}
+}
+
 // TODO: this uses ginkgo interface _only_ to support our current controller tests
-func NewUnstarted(t ginkgo.GinkgoTInterface, handler http.Handler, options ...actionsServerOption) *actionsServer {
-	s := httptest.NewUnstartedServer(handler)
+func NewUnstarted(t ginkgo.GinkgoTInterface, handlers Handlers, options ...actionsServerOption) *actionsServer {
+	mux := mux.NewRouter()
+	s := httptest.NewUnstartedServer(mux)
 	server := &actionsServer{
 		Server: s,
 	}
+
 	t.Cleanup(func() {
 		server.Close()
 	})
@@ -54,44 +151,27 @@ func NewUnstarted(t ginkgo.GinkgoTInterface, handler http.Handler, options ...ac
 		option(server)
 	}
 
-	mux := mux.NewRouter()
+	handlers.defaults(server)
+
 	// GitHub endpoints
-	mux.HandleFunc("/orgs/{org}/actions/runners/registration-token", server.handleCreateRegistrationToken).Methods(http.MethodPost)
-	mux.HandleFunc("/enterprises/{enterprise}/actions/runners/registration-token", server.handleCreateRegistrationToken).Methods(http.MethodPost)
-	mux.HandleFunc("/repos/{org}/{repo}/actions/runners/registration-token", server.handleCreateRegistrationToken).Methods(http.MethodPost)
-	mux.HandleFunc("/app/installations/{id}/access_tokens", server.handleCreateAccessToken).Methods(http.MethodPost)
-	mux.HandleFunc("/actions/runner-registration", server.handleGetActionsServiceAdminConnection).Methods(http.MethodPost)
+	mux.HandleFunc("/orgs/{org}/actions/runners/registration-token", handlers.CreateRegistrationToken).Methods(http.MethodPost)
+	mux.HandleFunc("/enterprises/{enterprise}/actions/runners/registration-token", handlers.CreateRegistrationToken).Methods(http.MethodPost)
+	mux.HandleFunc("/repos/{org}/{repo}/actions/runners/registration-token", handlers.CreateRegistrationToken).Methods(http.MethodPost)
+	mux.HandleFunc("/app/installations/{id}/access_tokens", handlers.CreateAccessToken).Methods(http.MethodPost)
+	mux.HandleFunc("/actions/runner-registration", handlers.GetActionsServiceAdminConnection).Methods(http.MethodPost)
 
 	// Actions service endpoints
-	mux.HandleFunc(scaleSetEndpoint, server.handleCreateRunnerScaleSet).Methods(http.MethodPost)
-	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", server.handleUpdateRunnerScaleSet).Methods(http.MethodPatch)
-	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", server.handleDeleteRunnerScaleSet).Methods(http.MethodDelete)
-	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", server.handleGetRunnerScaleSetByID).Methods(http.MethodGet)
-	mux.HandleFunc(scaleSetEndpoint, server.handleGetRunnerScaleSetByName).Methods(http.MethodGet)
-	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}/sessions", server.handleCreateMessageSession).Methods(http.MethodPost)
+	mux.HandleFunc(scaleSetEndpoint, handlers.CreateRunnerScaleSet).Methods(http.MethodPost)
+	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", handlers.UpdateRunnerScaleSet).Methods(http.MethodPatch)
+	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", handlers.DeleteRunnerScaleSet).Methods(http.MethodDelete)
+	mux.HandleFunc(scaleSetEndpoint+"/{id:[0-9]+}", handlers.GetRunnerScaleSetByID).Methods(http.MethodGet)
+	mux.HandleFunc(scaleSetEndpoint, handlers.GetRunnerScaleSetByName).Methods(http.MethodGet)
+	mux.HandleFunc(scaleSetEndpoint+"/{sid:[0-9]+}/sessions", handlers.CreateMessageSession).Methods(http.MethodPost)
+	mux.HandleFunc(scaleSetEndpoint+"/{sid:[0-9]+}/sessions/{id}", handlers.DeleteMessageSession).Methods(http.MethodDelete)
+	mux.HandleFunc(scaleSetEndpoint+"/{sid:[0-9]+}/sessions/{id}", handlers.DeleteMessageSession).Methods(http.MethodPatch)
+	mux.HandleFunc(scaleSetEndpoint+"/{sid:[0-9]+}/acquirejobs", handlers.AcquireJobs).Methods(http.MethodPost)
 
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// handle getRunnerRegistrationToken
-		if strings.HasSuffix(r.URL.Path, "/runners/registration-token") {
-			w.WriteHeader(http.StatusCreated)
-			w.Write([]byte(`{"token":"token"}`))
-			return
-		}
-
-		// handle getActionsServiceAdminConnection
-		if strings.HasSuffix(r.URL.Path, "/actions/runner-registration") {
-			if server.token == "" {
-				server.token = DefaultActionsToken(t)
-			}
-
-			w.Write([]byte(`{"url":"` + s.URL + `/tenant/123/","token":"` + server.token + `"}`))
-			return
-		}
-
-		handler.ServeHTTP(w, r)
-	})
-
-	server.Config.Handler = h
+	server.Config.Handler = mux
 
 	return server
 }
@@ -101,6 +181,15 @@ type actionsServerOption func(*actionsServer)
 func WithActionsToken(token string) actionsServerOption {
 	return func(s *actionsServer) {
 		s.token = token
+	}
+}
+
+func WithOrg(organization, token string) actionsServerOption {
+	return func(s *actionsServer) {
+		s.db.orgs[organization] = &org{
+			token: token,
+			repos: make(map[string]*repo),
+		}
 	}
 }
 
@@ -301,10 +390,17 @@ func (s *actionsServer) handleGetRunnerScaleSetByName(w http.ResponseWriter, r *
 }
 
 func (s *actionsServer) handleCreateMessageSession(w http.ResponseWriter, r *http.Request) {
-	// id := mux.Vars(r)["id"]
-	uuid := uuid.New()
+	scaleSetID, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		s.logger.Error(err, "Failed to parse scale set id")
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	newID := uuid.New()
+	s.db.org.repos["test"].scaleSets[scaleSetID].sessions[newID.String()] = true
 	res := &actions.RunnerScaleSetSession{
-		SessionId:               &uuid,
+		SessionId:               &newID,
 		OwnerName:               "owner",
 		RunnerScaleSet:          &actions.RunnerScaleSet{},
 		MessageQueueUrl:         s.Server.Config.Addr,
@@ -315,7 +411,63 @@ func (s *actionsServer) handleCreateMessageSession(w http.ResponseWriter, r *htt
 	writeJSON(w, res)
 }
 
-func (s *actionsServer) GetRunner(w http.ResponseWriter, r *http.Request) {
+func (s *actionsServer) handleDeleteMessageSession(w http.ResponseWriter, r *http.Request) {
+	scaleSetID, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		s.logger.Error(err, "Failed to parse scale set id")
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	id := mux.Vars(r)["id"]
+
+	delete(s.db.org.repos["test"].scaleSets[scaleSetID].sessions, id)
+}
+
+func (s *actionsServer) handleRefreshMessageSession(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	_ = id
+}
+
+func (s *actionsServer) handleAcquireJobs(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	_ = id
+}
+
+func (s *actionsServer) handleGetRunner(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	_ = id
+}
+
+func (s *actionsServer) handleGetRunnerByName(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		s.logger.Error(fmt.Errorf("received empty name"), "Request does not contain name URL parameter")
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	type response struct {
+		Count   int               `json:"count"`
+		Runners []*actions.Runner `json:"value"`
+	}
+
+	var res response
+	s.db.runners.Range(func(key, value any) bool {
+		v := value.(*actions.Runner)
+		if v.Name != name {
+			return true
+		}
+
+		res.Runners = append(res.Runners, v)
+		res.Count++
+		return true
+	})
+
+	writeJSON(w, &res)
+}
+
+func (s *actionsServer) handleGetRunnerGroup(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	_ = id
 }
@@ -329,32 +481,26 @@ type db struct {
 	mu                sync.Mutex
 	scaleSetIDCounter atomic.Int64
 	scaleSets         sync.Map
-	orgs              map[string]*org
+	org               *org
+	token             string
 }
 
 func newDB() *db {
-	return &db{
-		orgs: make(map[string]*org),
-	}
-}
-
-func (db *db) addOrg(name string) {
-	db.orgs[name] = &org{
-		repos: make(map[string]*repo),
-	}
+	return &db{}
 }
 
 func (db *db) addRepo(org, repository string) {
-	db.orgs[org].repos[repository] = &repo{
+	db.org.repos[repository] = &repo{
 		scaleSets: make(map[int64]*scaleSet),
 	}
 }
 
 func (db *db) addScaleSet(org, repository string, ss *scaleSet) {
-	db.orgs[org].repos[repository].scaleSets[ss.id] = ss
+	db.org.repos[repository].scaleSets[ss.id] = ss
 }
 
 type org struct {
+	token string
 	repos map[string]*repo
 }
 
@@ -363,9 +509,10 @@ type repo struct {
 }
 
 type scaleSet struct {
-	id      int64
-	name    string
-	runners map[int64]*runner
+	id       int64
+	name     string
+	sessions map[string]bool
+	runners  map[int64]*runner
 }
 
 type runner struct {
