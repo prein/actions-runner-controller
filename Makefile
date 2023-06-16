@@ -213,7 +213,7 @@ docker-buildx:
 	docker buildx build --platform ${PLATFORMS} \
 		--build-arg RUNNER_VERSION=${RUNNER_VERSION} \
 		--build-arg DOCKER_VERSION=${DOCKER_VERSION} \
-		--build-arg VERSION=${VERSION} \
+		--build-arg VERSION=0.4.0 \
 		-t "${DOCKER_IMAGE_NAME}:${VERSION}" \
 		-f Dockerfile \
 		. ${PUSH_ARG}
